@@ -1,135 +1,366 @@
-<!--
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Eaglercraft 1.12.2</title>
 
-YOU ARE PLAYING ON THE LATEST STABLE EAGLERCRAFT VERSION: 1.12 u2
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+            font-family: Arial, sans-serif;
+        }
 
-THIS CLIENT IS NOW STABLE! PLEASE EXCUSE ANY REMAINING BUGS AND REPORT THEM HERE: https://discord.gg/UEE39zHuCx
+        #loading {
+            position: fixed;
+            inset: 0;
 
-Eagletcraft plays directly in the iframe, while  pressing the undetectable button 
-opens Eagletcraft in a new window that appears blank to screen-monitoring software such as GoGuardian and Securely
+            display: flex;
+            flex-direction: column;
 
-Eaglercraft 1.12 created by PeytonPlayz595
+            align-items: center;
+            justify-content: center;
 
-EaglercraftX Engine created by lax1dude and ayunami2000
+            background: #111;
+            color: white;
 
-Eagletcraft compiled by PlanetDoge w/ help from the PlanetGamez team
+            text-align: center;
+        }
 
-EaglercraftX 1.12 average RAM usage: 1.6 GB
-Eagletcraft 1.12 Undetectable average RAM usage: 0.8 GB
+        #loading h1 {
+            margin-bottom: 10px;
+        }
 
+        #status {
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
 
+        #play {
+            display: none;
 
+            padding: 14px 28px;
 
+            background: #4a148c;
+            color: white;
 
+            border: 0;
+            border-radius: 8px;
 
-Eagletcraft's code is liscensed under the Apache 2.0 terms. Redistribution of code without attribution is prohibited.
-GitHub Link: https://github.com/PlanetDogeCodes/Eagletcraft-1.12
+            font-size: 18px;
+            font-weight: bold;
 
--->
+            cursor: pointer;
+        }
 
-<html><head><base target="_blank"><script id="gamemonetize-sdk">Couldn't find the requested file /sedk.js in testamalame/sef.</script></head><body><div id="container">
-  <iframe id="fr" width="100%" height="100%" frameborder="0" allowfullscreen=""></iframe>
-  <button class="play-button" type="button" onclick="PlayTo(this)">PLAY REGULAR</button>
-  <button class="fullscreen-button" type="button" onclick="openFullscreen()">OPEN IN ABOUT:BLANK</button>
+        #play:hover {
+            background: #641db5;
+        }
+
+        #error {
+            display: none;
+
+            max-width: 600px;
+
+            padding: 20px;
+
+            color: #ff8080;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="loading">
+
+    <h1>Eaglercraft 1.12.2</h1>
+
+    <div id="status">
+        Loading game...
+    </div>
+
+    <button id="play">
+        PLAY
+    </button>
+
+    <div id="error"></div>
+
 </div>
 
-<style>
-  .play-button { padding: 20px 40px; background: #000; color: #fff; border: 2px solid #4a148c; border-radius: 10px; font: bold 24px Arial; cursor: pointer; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1001; }
-  .play-button:hover { background: #4a148c; }
-  .fullscreen-button { padding: 10px 15px; background: #000; color: #fff; border: 2px solid #4a148c; border-radius: 5px; font: bold 14px Arial; cursor: pointer; position: fixed; bottom: 20px; right: 20px; z-index: 1002; }
-  .fullscreen-button:hover { background: #4a148c; }
-  body, html { margin: 0; padding: 0; overflow: hidden; height: 100%; }
-</style>
 
 <script>
 
-  const DB_NAME = 'GameCacheDB';
-  const STORE_NAME = 'GameFiles';
-  const CACHE_DURATION = 90 * 24 * 60 * 60 * 1000; // 3 ay
-  const FILE_URL = 'https://cdn.jsdelivr.net/gh/PlanetDogeCodes/Eagletcraft-1.12@main/source%20file/egc1-12.xml';
+const GAME_URL =
+    "https://cdn.jsdelivr.net/gh/PlanetDogeCodes/Eagletcraft-1.12@main/source%20file/egc1-12.xml";
 
-  function openDB() {
+
+const DB_NAME = "EaglercraftLauncher";
+
+const STORE_NAME = "GameFiles";
+
+const CACHE_MAX_AGE =
+    90 * 24 * 60 * 60 * 1000;
+
+
+/* --------------------------------------------------
+   Open IndexedDB
+-------------------------------------------------- */
+
+function openDatabase() {
+
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 1);
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        db.createObjectStore(STORE_NAME, { keyPath: 'url' });
-      };
-      request.onsuccess = (event) => resolve(event.target.result);
-      request.onerror = (event) => reject(event.target.error);
-    });
-  }
 
-  async function saveToCache(url, content) {
-    const db = await openDB();
+        const request =
+            indexedDB.open(DB_NAME, 1);
+
+        request.onupgradeneeded = function(event) {
+
+            const db = event.target.result;
+
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+
+                db.createObjectStore(
+                    STORE_NAME,
+                    { keyPath: "url" }
+                );
+
+            }
+
+        };
+
+        request.onsuccess = function(event) {
+
+            resolve(event.target.result);
+
+        };
+
+        request.onerror = function() {
+
+            reject(request.error);
+
+        };
+
+    });
+
+}
+
+
+/* --------------------------------------------------
+   Save downloaded game
+-------------------------------------------------- */
+
+async function saveGame(url, content) {
+
+    const db = await openDatabase();
+
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put({ url: url, content: content, timestamp: Date.now() });
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(new Error('Cache error'));
-    });
-  }
 
-  async function getFileFromCache(url) {
-    const db = await openDB();
+        const transaction =
+            db.transaction(
+                STORE_NAME,
+                "readwrite"
+            );
+
+        const store =
+            transaction.objectStore(STORE_NAME);
+
+        const request =
+            store.put({
+                url: url,
+                content: content,
+                timestamp: Date.now()
+            });
+
+        request.onsuccess =
+            () => resolve();
+
+        request.onerror =
+            () => reject(request.error);
+
+    });
+
+}
+
+
+/* --------------------------------------------------
+   Get cached game
+-------------------------------------------------- */
+
+async function getCachedGame(url) {
+
+    const db = await openDatabase();
+
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get(url);
-      request.onsuccess = async (event) => {
-        const data = event.target.result;
-        if (data && (Date.now() - data.timestamp) < CACHE_DURATION) {
-          resolve(data.content);
-        } else {
-          try {
-            const response = await fetch(url);
-            const text = await response.text();
-            await saveToCache(url, text);
-            resolve(text);
-          } catch (err) {
-            reject(err);
-          }
-        }
-      };
-      request.onerror = () => reject(new Error('DB error'));
+
+        const transaction =
+            db.transaction(
+                STORE_NAME,
+                "readonly"
+            );
+
+        const store =
+            transaction.objectStore(STORE_NAME);
+
+        const request =
+            store.get(url);
+
+        request.onsuccess = async function() {
+
+            const cached =
+                request.result;
+
+            if (
+                cached &&
+                Date.now() - cached.timestamp
+                    < CACHE_MAX_AGE
+            ) {
+
+                resolve(cached.content);
+
+                return;
+
+            }
+
+            try {
+
+                const response =
+                    await fetch(url);
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "HTTP " + response.status
+                    );
+
+                }
+
+                const content =
+                    await response.text();
+
+                await saveGame(
+                    url,
+                    content
+                );
+
+                resolve(content);
+
+            } catch (error) {
+
+                reject(error);
+
+            }
+
+        };
+
+        request.onerror = function() {
+
+            reject(request.error);
+
+        };
+
     });
-  }
+
+}
 
 
+/* --------------------------------------------------
+   Download the game
+-------------------------------------------------- */
 
-  function PlayTo(button) {
-    const iframe = document.getElementById("fr");
-    getFileFromCache(FILE_URL).then((text) => {
-      iframe.contentDocument.open();
-      iframe.contentDocument.write(text);
-      iframe.contentDocument.close();
-      iframe.style.display = "block";
-      button.style.display = "none";
+async function loadGame() {
 
-      iframe.contentWindow.document.addEventListener('pointerdown', showAdOnClick);
-      iframe.contentWindow.document.addEventListener('touchstart', showAdOnClick);
-    }).catch((err) => {
-      console.error('Error:', err);
-      alert('An error was detected. Error Code: -21345');
-    });
-  }
+    const status =
+        document.getElementById("status");
 
-  function openFullscreen() {
-    getFileFromCache(FILE_URL).then((text) => {
-      const newWindow = window.open("", "_blank");
-      if (newWindow) {
-        newWindow.document.open();
-        newWindow.document.write(text);
-        newWindow.document.close();
+    try {
 
-        newWindow.document.addEventListener('pointerdown', showAdOnClick);
-        newWindow.document.addEventListener('touchstart', showAdOnClick);
-      } else {
-        alert('Tam ekran açılamadı.');
-      }
-    }).catch((err) => {
-      console.error('Notice:', err);
-      alert('Full Screen Loaded');
-    });
-  }
-</script></body></html>
+        status.textContent =
+            "Checking local cache...";
+
+        const gameHTML =
+            await getCachedGame(GAME_URL);
+
+        status.textContent =
+            "Game is ready!";
+
+        const play =
+            document.getElementById("play");
+
+        play.style.display =
+            "inline-block";
+
+
+        play.onclick = function() {
+
+            runGame(gameHTML);
+
+        };
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.style.display =
+            "none";
+
+        const errorBox =
+            document.getElementById("error");
+
+        errorBox.style.display =
+            "block";
+
+        errorBox.textContent =
+            "The game could not be loaded. " +
+            "Please try again later.\n\n" +
+            error.message;
+
+    }
+
+}
+
+
+/* --------------------------------------------------
+   Run the downloaded game
+-------------------------------------------------- */
+
+function runGame(gameHTML) {
+
+    const gameWindow =
+        window.open("", "_blank");
+
+    if (!gameWindow) {
+
+        alert(
+            "The browser blocked the new tab. " +
+            "Please allow pop-ups for this site."
+        );
+
+        return;
+
+    }
+
+
+    gameWindow.document.open();
+
+    gameWindow.document.write(
+        gameHTML
+    );
+
+    gameWindow.document.close();
+
+}
+
+
+/* --------------------------------------------------
+   Start
+-------------------------------------------------- */
+
+loadGame();
+
+</script>
+
+</body>
+</html>
